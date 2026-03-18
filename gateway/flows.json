@@ -1,0 +1,76 @@
+[
+  {
+    "id": "f1c4b1f6.8293a",
+    "type": "tab",
+    "label": "Replay",
+    "disabled": false,
+    "info": "Receives simulated data and stores the latest value for retrieval."
+  },
+  {
+    "id": "e5c8d393.7b6c88",
+    "type": "http in",
+    "z": "f1c4b1f6.8293a",
+    "name": "Replay POST",
+    "url": "/replay",
+    "method": "post",
+    "swaggerDoc": "",
+    "x": 140,
+    "y": 90,
+    "wires": [
+      ["b9c1f383.55f498", "949ade10.1b0e6"]
+    ]
+  },
+  {
+    "id": "b9c1f383.55f498",
+    "type": "function",
+    "z": "f1c4b1f6.8293a",
+    "name": "store latest",
+    "func": "flow.set('latest', msg.payload);\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 90,
+    "wires": [["949ade10.1b0e6"]]
+  },
+  {
+    "id": "949ade10.1b0e6",
+    "type": "http response",
+    "z": "f1c4b1f6.8293a",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 530,
+    "y": 90,
+    "wires": []
+  },
+  {
+    "id": "6b0f27ad.19fe74",
+    "type": "http in",
+    "z": "f1c4b1f6.8293a",
+    "name": "Latest GET",
+    "url": "/latest",
+    "method": "get",
+    "swaggerDoc": "",
+    "x": 140,
+    "y": 170,
+    "wires": [["6c6c6185.e0b2ec"]]
+  },
+  {
+    "id": "6c6c6185.e0b2ec",
+    "type": "function",
+    "z": "f1c4b1f6.8293a",
+    "name": "return latest",
+    "func": "msg.payload = flow.get('latest') || {};\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 170,
+    "wires": [["949ade10.1b0e6"]]
+  }
+]

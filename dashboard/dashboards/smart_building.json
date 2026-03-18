@@ -1,0 +1,26 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "smart-building-1",
+    "title": "Smart Building Metrics",
+    "timezone": "browser",
+    "refresh": "15s",
+    "panels": [
+      {
+        "type": "timeseries",
+        "title": "Electricity Value (sampled)",
+        "gridPos": { "x": 0, "y": 0, "w": 24, "h": 10 },
+        "targets": [
+          {
+            "expr": "electricity_value",
+            "refId": "A",
+            "legendFormat": "{{meter}}"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 38,
+    "version": 1
+  },
+  "overwrite": true
+}

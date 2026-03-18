@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  intelligence:
+    build:
+      context: ./logic
+      dockerfile: config/Dockerfile
+    container_name: bms_intelligence
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logic:/app           # Para desarrollo en vivo
+      - ./data:/app/data       # Para acceder al CSV
+    env_file:
+      - .env
+    networks:
+      - bms_net
+
+  replayer:
+    profiles: ["replayer"]
+    build:
+      context: ./logic
+      dockerfile: config/Dockerfile
+    container_name: bms_replayer
+    command: ["python", "replay.py"]
+    volumes:
+      - ./logic:/app
+      - ./data:/app/data
+    env_file:
+      - .env
+    networks:
+      - bms_net
+    restart: unless-stopped
+
+  gateway:
+    image: nodered/node-red:latest
+    container_name: bms_gateway
+    ports:
+      - "1880:1880"
+    volumes:
+      - ./gateway:/data        # Persistencia de Node-RED
+    networks:
+      - bms_net
+
+  visualizer:
+    image: grafana/grafana:latest
+    container_name: bms_visualizer
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./dashboard:/var/lib/grafana # Persistencia de Grafana
+    networks:
+      - bms_net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: bms_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - bms_net
+
+networks:
+  bms_net:
+    driver: bridge

@@ -1,0 +1,17 @@
+.venv_sb2
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+
+# Docker
+*.log
+
+# Node-RED
+data/
+
+# VS Code
+.vscode/
