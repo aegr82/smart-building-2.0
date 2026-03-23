@@ -15,7 +15,11 @@ def get_dataset():
     if not os.path.exists(CSV_PATH):
         return None
     # Tip pro: Usamos tipos de datos más ligeros para ahorrar RAM
-    return pd.read_csv(CSV_PATH)
+    try:
+        return pd.read_csv(CSV_PATH, low_memory=False, engine='python')
+    except Exception as e:
+        print(f"Error loading CSV: {e}")
+        return None
 
 def get_current_reading(index: int):
     """Obtiene una fila específica para el simulador/agente."""

@@ -55,7 +55,11 @@ def metrics():
     # Tomamos los primeros 3 edificios para el dashboard de Grafana
     cols = [c for c in df.columns if c != "timestamp"][:3]
     for col in cols:
-        consumption_gauge.labels(building_id=col).set(float(row[col]))
+        try:
+            value = float(row[col]) if pd.notna(row[col]) else 0.0
+            consumption_gauge.labels(building_id=col).set(value)
+        except (ValueError, TypeError):
+            consumption_gauge.labels(building_id=col).set(0.0)
 
     _REPLAY_INDEX = (_REPLAY_INDEX + 1) % len(df)
     
