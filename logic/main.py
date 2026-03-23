@@ -1,9 +1,16 @@
 import os
+import sys
+from pathlib import Path
 import httpx
 import pandas as pd
 from fastapi import FastAPI, Response
 from prometheus_client import Gauge, generate_latest, CONTENT_TYPE_LATEST, CollectorRegistry
 from dotenv import load_dotenv
+
+# Asegura que la ruta del paquete core/config se encuentre en el path
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 # Importamos tu lógica de datos
 from core.tools import get_dataset, get_building_list, get_consumption_peak
