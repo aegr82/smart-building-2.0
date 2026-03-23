@@ -22,8 +22,11 @@ app = FastAPI(title="Smart Building 2.0 - Intelligence Service")
 
 # --- VARIABLES DE CONTROL ---
 _REPLAY_INDEX = 0
-# Usamos la IP directa para evitar fallos de DNS de Docker hacia afuera
-NODE_RED_URL = f"http://{SERVER_IP}:1880"
+# URL de Node-RED: por env var o fallback a SERVER_IP si está configurado
+# Usa solo SERVER_IP si realmente necesitas alcanzar Node-RED en otra PC  
+_DEFAULT_NODE_RED = f"http://{SERVER_IP}:1880" if SERVER_IP != "127.0.0.1" else "http://localhost:1880"
+NODE_RED_URL = os.getenv("NODE_RED_URL", _DEFAULT_NODE_RED)
+
 
 # --- PROMETHEUS SETUP ---
 registry = CollectorRegistry()

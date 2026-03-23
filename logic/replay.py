@@ -20,7 +20,9 @@ def get_csv_path() -> str:
 
 
 def get_node_red_url() -> str:
-    return os.getenv("NODE_RED_URL", "http://gateway:1880/replay")
+    # Default: intenta localhost (dev), luego gateway (Docker), luego config IP
+    default = os.getenv("NODE_RED_DEFAULT", "http://localhost:1880/replay")
+    return os.getenv("NODE_RED_URL", default)
 
 
 def get_interval() -> float:
