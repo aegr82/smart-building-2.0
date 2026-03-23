@@ -6,8 +6,8 @@ from prometheus_client import Gauge, generate_latest, CONTENT_TYPE_LATEST, Colle
 from dotenv import load_dotenv
 
 # Importamos tu lógica de datos
-from .core.tools import get_dataset, get_building_list, get_consumption_peak
-from .config.config import SERVER_IP
+from core.tools import get_dataset, get_building_list, get_consumption_peak
+from config.config import SERVER_IP
 
 load_dotenv()
 

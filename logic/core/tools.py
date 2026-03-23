@@ -14,12 +14,23 @@ def get_dataset():
     """Carga el dataset de forma eficiente."""
     if not os.path.exists(CSV_PATH):
         return None
-    # Tip pro: Usamos tipos de datos más ligeros para ahorrar RAM
+
     try:
-        return pd.read_csv(CSV_PATH, low_memory=False, engine='python')
+        df = pd.read_csv(CSV_PATH, engine='python')
+        # Aseguramos conversion numérica para datos de consumo
+        cols = [c for c in df.columns if c != 'timestamp']
+        df[cols] = df[cols].apply(pd.to_numeric, errors='coerce')
+        return df
     except Exception as e:
-        print(f"Error loading CSV: {e}")
-        return None
+        print(f"Error loading CSV with python engine: {e}")
+        try:
+            df = pd.read_csv(CSV_PATH, low_memory=False)
+            cols = [c for c in df.columns if c != 'timestamp']
+            df[cols] = df[cols].apply(pd.to_numeric, errors='coerce')
+            return df
+        except Exception as e2:
+            print(f"Error loading CSV with default engine: {e2}")
+            return None
 
 def get_current_reading(index: int):
     """Obtiene una fila específica para el simulador/agente."""
