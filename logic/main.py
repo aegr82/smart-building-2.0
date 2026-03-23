@@ -1,188 +1,88 @@
-from fastapi import FastAPI
-import pandas as pd
 import os
-from dotenv import load_dotenv
-from functools import lru_cache
-from prometheus_client import Gauge, generate_latest, CONTENT_TYPE_LATEST
-from prometheus_client.core import CollectorRegistry
-from fastapi.responses import Response
 import httpx
+import pandas as pd
+from fastapi import FastAPI, Response
+from prometheus_client import Gauge, generate_latest, CONTENT_TYPE_LATEST, CollectorRegistry
+from dotenv import load_dotenv
 
-# Cargar variables de entorno desde .env (local/dev) y desde el entorno Docker
+# Importamos tu lógica de datos
+from .core.tools import get_dataset, get_building_list, get_consumption_peak
+from .config.config import SERVER_IP
+
 load_dotenv()
 
-app = FastAPI(title="Smart Building 2.0")
+app = FastAPI(title="Smart Building 2.0 - Intelligence Service")
 
-# Make the CSV path configurable for tests / different environments.
-DEFAULT_CSV_PATH = "/app/data/electricity.csv"
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# Which columns to expose as Prometheus metrics (comma-separated). Uses the first 3 columns after timestamp if unset.
-PROM_METRIC_COLUMNS = os.getenv("PROM_METRIC_COLUMNS")
-
-
-def get_csv_path() -> str:
-    """Resolve the CSV path from env (so tests can override it)."""
-    return os.getenv("CSV_PATH", DEFAULT_CSV_PATH)
-
-
-def get_node_red_url() -> str:
-    return os.getenv("NODE_RED_URL", "http://gateway:1880")
-
-
-@lru_cache(maxsize=2)
-def _load_dataset(csv_path: str) -> pd.DataFrame:
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(csv_path)
-    return pd.read_csv(csv_path)
-
-
-@lru_cache(maxsize=2)
-def _load_snapshot_columns(csv_path: str) -> list[str]:
-    """Return the list of columns we will expose as Prometheus metrics."""
-    if PROM_METRIC_COLUMNS:
-        return [c.strip() for c in PROM_METRIC_COLUMNS.split(",") if c.strip()]
-
-    # Default: take first 3 columns after timestamp from the CSV header.
-    if not os.path.exists(csv_path):
-        return []
-
-    df = pd.read_csv(csv_path, nrows=1)
-    cols = [c for c in df.columns if c != "timestamp"]
-    return cols[:3]
-
-
-@lru_cache(maxsize=2)
-def _get_metrics_registry(csv_path: str):
-    """Create or reuse a Prometheus registry + gauges for a given dataset."""
-    cols = _load_snapshot_columns(csv_path)
-    registry = CollectorRegistry()
-    gauges: dict[str, Gauge] = {}
-    for col in cols:
-        gauges[col] = Gauge(
-            "electricity_value",
-            "Electricity value (from dataset)",
-            ["meter"],
-            registry=registry,
-        )
-    return registry, gauges
-
-
-def _update_metrics_from_row(row: pd.Series, gauges: dict[str, Gauge]) -> None:
-    """Update Prometheus gauges from a single row of the dataframe."""
-    for col, gauge in gauges.items():
-        if col in row:
-            try:
-                gauge.labels(meter=col).set(float(row[col]))
-            except Exception:
-                # Skip invalid values
-                pass
-
-
-def _http_client() -> httpx.Client:
-    """Create an HTTP client for external requests (Node-RED)."""
-    return httpx.Client(timeout=5.0)
-
-
-# Replay/step-through state (demo mode)
+# --- VARIABLES DE CONTROL ---
 _REPLAY_INDEX = 0
+# Usamos la IP directa para evitar fallos de DNS de Docker hacia afuera
+NODE_RED_URL = f"http://{SERVER_IP}:1880"
 
+# --- PROMETHEUS SETUP ---
+registry = CollectorRegistry()
+consumption_gauge = Gauge(
+    "building_electricity_kwh",
+    "Consumo eléctrico actual del dataset",
+    ["building_id"],
+    registry=registry
+)
+
+# --- RUTAS ---
 
 @app.get("/")
 def read_root():
-    return {"status": "Online", "structure": "Verified"}
+    return {"status": "Online", "ip_servidor": SERVER_IP}
 
-@app.get("/test-data")
-def test_data():
-    try:
-        df = _load_dataset(get_csv_path())
-    except FileNotFoundError:
-        return {"error": "CSV no encontrado"}
+@app.get("/buildings")
+def list_buildings():
+    return get_building_list()
 
-    return df.head(5).to_dict(orient="records")
-
+@app.get("/analyze/peak/{building_id}")
+def analyze_peak(building_id: str):
+    return get_consumption_peak(building_id)
 
 @app.get("/metrics")
-def metrics() -> Response:
-    """Prometheus scrape endpoint.
+def metrics():
+    """Avanza el simulador con cada lectura de Prometheus."""
+    global _REPLAY_INDEX
+    df = get_dataset()
+    
+    if df is None:
+        return Response(content=generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
 
-    Each scrape advances through the dataset so Grafana can plot a time series.
-    """
+    row = df.iloc[_REPLAY_INDEX]
+    
+    # Tomamos los primeros 3 edificios para el dashboard de Grafana
+    cols = [c for c in df.columns if c != "timestamp"][:3]
+    for col in cols:
+        consumption_gauge.labels(building_id=col).set(float(row[col]))
 
-    csv_path = get_csv_path()
-
-    try:
-        df = _load_dataset(csv_path)
-    except FileNotFoundError:
-        # No data available; return empty metrics payload
-        empty_registry, _ = _get_metrics_registry(csv_path)
-        return Response(content=generate_latest(empty_registry), media_type=CONTENT_TYPE_LATEST)
-
-    registry, gauges = _get_metrics_registry(csv_path)
-
-    index = int(os.getenv("METRICS_ROW_INDEX", "0"))
-    index = index % len(df)
-    _update_metrics_from_row(df.iloc[index], gauges)
-    os.environ["METRICS_ROW_INDEX"] = str((index + 1) % len(df))
-
-    data = generate_latest(registry)
-    return Response(content=data, media_type=CONTENT_TYPE_LATEST)
-
-
-@app.get("/nodered/latest")
-def nodered_latest():
-    """Proxy endpoint: obtiene el último dato que Node-RED tiene almacenado."""
-
-    node_red_url = get_node_red_url().rstrip("/") + "/latest"
-    try:
-        with _http_client() as client:
-            resp = client.get(node_red_url)
-            resp.raise_for_status()
-            return resp.json()
-    except Exception:
-        return {"error": "No se pudo obtener datos de Node-RED"}
-
+    _REPLAY_INDEX = (_REPLAY_INDEX + 1) % len(df)
+    
+    return Response(content=generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
 
 @app.post("/replay/step")
-def replay_step(count: int = 1):
-    """Avanza el replay en el dataset en pasos (modo demo).
-
-    Cada llamada avanza `count` filas y envía el registro actual a Node-RED.
-    """
-
+async def replay_step(count: int = 1):
+    """Envía datos a Node-RED usando la IP."""
     global _REPLAY_INDEX
+    df = get_dataset()
+    if df is None: return {"error": "No data"}
 
-    df = _load_dataset(get_csv_path())
-    total = len(df)
-
-    node_red_url = get_node_red_url().rstrip("/") + "/replay"
-    payloads = []
-
-    with _http_client() as client:
+    async with httpx.AsyncClient() as client:
         for _ in range(count):
             row = df.iloc[_REPLAY_INDEX].to_dict()
-            payloads.append(row)
             try:
-                client.post(node_red_url, json=row)
-            except Exception:
-                pass
-            _REPLAY_INDEX = (_REPLAY_INDEX + 1) % total
+                # Node-RED recibirá el JSON en su IP local
+                await client.post(f"{NODE_RED_URL}/data", json=row)
+            except Exception as e:
+                print(f"Error enviando a Node-RED: {e}")
+            
+            _REPLAY_INDEX = (_REPLAY_INDEX + 1) % len(df)
 
-    return {"sent": len(payloads), "index": _REPLAY_INDEX, "total": total}
-
-
-@app.get("/replay/status")
-def replay_status():
-    """Estado actual del replay (índice + total)."""
-
-    df = _load_dataset(get_csv_path())
-    return {"index": _REPLAY_INDEX, "total": len(df)}
-
+    return {"status": "sent", "index": _REPLAY_INDEX}
 
 @app.post("/replay/reset")
-def replay_reset():
-    """Reinicia el índice de replay a cero."""
-
+def reset_simulation():
     global _REPLAY_INDEX
     _REPLAY_INDEX = 0
-    return {"index": _REPLAY_INDEX}
+    return {"status": "reset"}
