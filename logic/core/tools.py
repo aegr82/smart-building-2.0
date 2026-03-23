@@ -3,7 +3,11 @@ import pandas as pd
 import os
 from functools import lru_cache
 
-CSV_PATH = os.path.join(os.path.dirname(__file__), "../../data/electricity.csv")
+# Determinar la ruta del CSV: en Docker /app/data, local ../../data
+if os.path.exists("/app/data/electricity.csv"):
+    CSV_PATH = "/app/data/electricity.csv"
+else:
+    CSV_PATH = os.path.join(os.path.dirname(__file__), "../../data/electricity.csv")
 
 @lru_cache(maxsize=1)
 def get_dataset():
