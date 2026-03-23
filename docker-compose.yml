@@ -13,6 +13,8 @@ services:
       - ./data:/app/data       # Para acceder al CSV
     env_file:
       - .env
+    environment:
+      - NODE_RED_URL=http://gateway:1880/replay
     networks:
       - bms_net
 
@@ -28,6 +30,8 @@ services:
       - ./data:/app/data
     env_file:
       - .env
+    environment:
+      - NODE_RED_URL=http://gateway:1880/replay
     networks:
       - bms_net
     restart: unless-stopped
