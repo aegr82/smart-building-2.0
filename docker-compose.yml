@@ -52,7 +52,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./dashboard:/var/lib/grafana # Persistencia de Grafana
+      - grafana_data:/var/lib/grafana
+      - ./dashboard/dashboards:/var/lib/grafana/dashboards
+      - ./dashboard/provisioning:/etc/grafana/provisioning
     networks:
       - bms_net
 
@@ -69,3 +71,6 @@ services:
 networks:
   bms_net:
     driver: bridge
+
+volumes:
+  grafana_data:
