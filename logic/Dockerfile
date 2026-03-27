@@ -15,5 +15,5 @@ COPY . .
 # Exponemos el puerto de FastAPI
 EXPOSE 8000
 
-# Ejecutamos main.py que está en la raíz de /logic (ahora /app)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Ejecutamos main.py que está dentro de app
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

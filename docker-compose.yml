@@ -24,7 +24,7 @@ services:
       context: ./logic
       dockerfile: Dockerfile
     container_name: bms_replayer
-    command: ["python", "replay.py"]
+    command: ["python", "scripts/replay.py"]
     volumes:
       - ./logic:/app
       - ./data:/app/data
