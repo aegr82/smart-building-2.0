@@ -1,31 +1,60 @@
 import os
-import sys
-from pathlib import Path
 import httpx
 import pandas as pd
+from functools import lru_cache
 from fastapi import FastAPI, Response
 from prometheus_client import Gauge, generate_latest, CONTENT_TYPE_LATEST, CollectorRegistry
 from dotenv import load_dotenv
 
-# Asegura que la ruta del paquete core/config se encuentre en el path
-BASE_DIR = Path(__file__).resolve().parent
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
-
-# Importamos tu lógica de datos
-from core.tools import get_dataset, get_building_list, get_consumption_peak
-from config.config import SERVER_IP
-
 load_dotenv()
+
+SERVER_IP = "192.168.1.14"
 
 app = FastAPI(title="Smart Building 2.0 - Intelligence Service")
 
 # --- VARIABLES DE CONTROL ---
 _REPLAY_INDEX = 0
-# URL de Node-RED: por env var o fallback a SERVER_IP si está configurado
-# Usa solo SERVER_IP si realmente necesitas alcanzar Node-RED en otra PC  
+
 _DEFAULT_NODE_RED = f"http://{SERVER_IP}:1880" if SERVER_IP != "127.0.0.1" else "http://localhost:1880"
 NODE_RED_URL = os.getenv("NODE_RED_URL", _DEFAULT_NODE_RED)
+
+# Determinar la ruta del CSV: en Docker /app/data, local ../data
+if os.path.exists("/app/data/electricity.csv"):
+    CSV_PATH = "/app/data/electricity.csv"
+else:
+    CSV_PATH = os.path.join(os.path.dirname(__file__), "../data/electricity.csv")
+
+@lru_cache(maxsize=1)
+def get_dataset():
+    """Carga el dataset de forma eficiente."""
+    if not os.path.exists(CSV_PATH):
+        return None
+    try:
+        df = pd.read_csv(CSV_PATH, engine='python')
+        cols = [c for c in df.columns if c != 'timestamp']
+        df[cols] = df[cols].apply(pd.to_numeric, errors='coerce')
+        return df
+    except Exception as e:
+        print(f"Error loading CSV: {e}")
+        try:
+            df = pd.read_csv(CSV_PATH, low_memory=False)
+            cols = [c for c in df.columns if c != 'timestamp']
+            df[cols] = df[cols].apply(pd.to_numeric, errors='coerce')
+            return df
+        except Exception:
+            return None
+
+def get_building_list():
+    df = get_dataset()
+    if df is None: return []
+    return [col for col in df.columns if col != "timestamp"]
+
+def get_consumption_peak(building_id: str):
+    df = get_dataset()
+    if df is None or building_id not in df.columns:
+        return {"error": "Building not found or no data"}
+    peak = df[building_id].max()
+    return {"building_id": building_id, "peak_consumption": float(peak)}
 
 
 # --- PROMETHEUS SETUP ---
@@ -38,7 +67,6 @@ consumption_gauge = Gauge(
 )
 
 # --- RUTAS ---
-
 @app.get("/")
 def read_root():
     return {"status": "Online", "ip_servidor": SERVER_IP}
@@ -62,8 +90,8 @@ def metrics():
 
     row = df.iloc[_REPLAY_INDEX]
     
-    # Tomamos los primeros 3 edificios para el dashboard de Grafana
-    cols = [c for c in df.columns if c != "timestamp"][:3]
+    # Tomamos 3 edificios específicos que sí tienen datos registrados desde el inicio
+    cols = ['Robin_public_Carolina', 'Robin_lodging_Dorthy', 'Robin_education_Zenia']
     for col in cols:
         try:
             value = float(row[col]) if pd.notna(row[col]) else 0.0
@@ -86,7 +114,6 @@ async def replay_step(count: int = 1):
         for _ in range(count):
             row = df.iloc[_REPLAY_INDEX].to_dict()
             try:
-                # Node-RED recibirá el JSON en su IP local
                 await client.post(f"{NODE_RED_URL}/data", json=row)
             except Exception as e:
                 print(f"Error enviando a Node-RED: {e}")

@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Copiamos requirements desde la carpeta config
-COPY config/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiamos todo el contenido de /logic al WORKDIR (/app)

@@ -12,9 +12,9 @@
         "gridPos": { "x": 0, "y": 0, "w": 24, "h": 10 },
         "targets": [
           {
-            "expr": "electricity_value",
+            "expr": "building_electricity_kwh",
             "refId": "A",
-            "legendFormat": "{{meter}}"
+            "legendFormat": "{{building_id}}"
           }
         ]
       }

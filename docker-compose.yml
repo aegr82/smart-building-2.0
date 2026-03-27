@@ -4,7 +4,7 @@ services:
   intelligence:
     build:
       context: ./logic
-      dockerfile: config/Dockerfile
+      dockerfile: Dockerfile
     container_name: bms_intelligence
     ports:
       - "8000:8000"
@@ -22,7 +22,7 @@ services:
     profiles: ["replayer"]
     build:
       context: ./logic
-      dockerfile: config/Dockerfile
+      dockerfile: Dockerfile
     container_name: bms_replayer
     command: ["python", "replay.py"]
     volumes:
