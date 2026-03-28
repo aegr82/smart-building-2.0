@@ -1,7 +1,6 @@
-version: '3.8'
-
 services:
   intelligence:
+    restart: always
     build:
       context: ./logic
       dockerfile: Dockerfile
@@ -34,9 +33,10 @@ services:
       - NODE_RED_URL=http://gateway:1880/replay
     networks:
       - bms_net
-    restart: unless-stopped
+    restart: always
 
   gateway:
+    restart: always
     image: nodered/node-red:latest
     container_name: bms_gateway
     ports:
@@ -47,6 +47,7 @@ services:
       - bms_net
 
   visualizer:
+    restart: always
     image: grafana/grafana:latest
     container_name: bms_visualizer
     ports:
@@ -59,6 +60,7 @@ services:
       - bms_net
 
   prometheus:
+    restart: always
     image: prom/prometheus:latest
     container_name: bms_prometheus
     ports:
