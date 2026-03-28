@@ -8,13 +8,49 @@
     "panels": [
       {
         "type": "timeseries",
-        "title": "Electricity Value (sampled)",
-        "gridPos": { "x": 0, "y": 0, "w": 24, "h": 10 },
+        "title": "Electricity Consumption (kWh)",
+        "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
         "targets": [
           {
             "expr": "building_electricity_kwh",
             "refId": "A",
             "legendFormat": "{{building_id}}"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Chilled Water Value (kWh)",
+        "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+        "targets": [
+          {
+            "expr": "building_chilledwater_kwh",
+            "refId": "A",
+            "legendFormat": "{{building_id}}"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Air Temperature",
+        "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "site_air_temperature",
+            "refId": "A",
+            "legendFormat": "{{site_id}}"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Wind Speed",
+        "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "site_wind_speed",
+            "refId": "A",
+            "legendFormat": "{{site_id}}"
           }
         ]
       }
