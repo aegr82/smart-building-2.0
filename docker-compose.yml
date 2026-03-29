@@ -35,7 +35,6 @@ services:
       - bms_net
 
   replayer:
-    profiles: ["replayer"]
     build:
       context: ./logic
       dockerfile: Dockerfile

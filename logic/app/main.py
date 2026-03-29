@@ -15,6 +15,19 @@ def read_root():
         "node_red": NODE_RED_URL
     }
 
+# --- METRICS INITIALIZATION ---
+# Pre-instantiate targets so Prometheus sees them even before the first Node-RED fetch
+TARGET_BUILDINGS = ['Bull_lodging_Melissa', 'Fox_office_Easter', 'Eagle_office_Marisela']
+TARGET_SITES = ['Bull', 'Fox', 'Panther'] # Panther also exists in metadata
+
+for b_id in TARGET_BUILDINGS:
+    consumption_gauge.labels(building_id=b_id).set(0.0)
+    chilledwater_gauge.labels(building_id=b_id).set(0.0)
+
+for s_id in TARGET_SITES:
+    temperature_gauge.labels(site_id=s_id).set(0.0)
+    wind_speed_gauge.labels(site_id=s_id).set(0.0)
+
 @app.get("/buildings")
 def list_buildings():
     return get_building_list()
