@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from functools import lru_cache
 from app.config import DATA_DIR
-from app.metrics_exporter import consumption_gauge, chilledwater_gauge, temperature_gauge, wind_speed_gauge
+from app.metrics_exporter import consumption_gauge, chilledwater_gauge, temperature_gauge, wind_speed_gauge, dew_temperature_gauge
 
 @lru_cache(maxsize=1)
 def load_datasets():
@@ -113,8 +113,10 @@ def update_building_metrics(replay_index: int, target_buildings: list):
                         if td.total_seconds() < 7200:
                             temp = w_row['airTemperature']
                             wind = w_row['windSpeed']
+                            dew = w_row.get('dewTemperature')
                             if pd.notna(temp): temperature_gauge.labels(site_id=site_id).set(float(temp))
                             if pd.notna(wind): wind_speed_gauge.labels(site_id=site_id).set(float(wind))
+                            if dew is not None and pd.notna(dew): dew_temperature_gauge.labels(site_id=site_id).set(float(dew))
             except Exception as e:
                 pass
 
@@ -187,9 +189,11 @@ def extract_sensor_payload_at_index(replay_index: int, target_buildings: list) -
                             
                             td = abs(w_row['timestamp'] - ts)
                             if td.total_seconds() < 7200:
+                                dew_val = w_row.get('dewTemperature')
                                 payload["weather"][site_id] = {
                                     "airTemperature": float(w_row['airTemperature']) if pd.notna(w_row['airTemperature']) else None,
-                                    "windSpeed": float(w_row['windSpeed']) if pd.notna(w_row['windSpeed']) else None
+                                    "windSpeed": float(w_row['windSpeed']) if pd.notna(w_row['windSpeed']) else None,
+                                    "dewTemperature": float(dew_val) if dew_val is not None and pd.notna(dew_val) else None
                                 }
             except Exception: pass
 

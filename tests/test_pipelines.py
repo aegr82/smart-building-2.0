@@ -18,8 +18,8 @@ def test_traditional_ai():
         import torch
         train_mod = load_module("train", "01_traditional_ai/train.py")
         model = train_mod.EnergyPredictor()
-        # dummy input: [airTemperature, windSpeed, hour]
-        dummy_input = torch.tensor([[15.0, 5.0, 10]], dtype=torch.float32)
+        # dummy input: [airTemperature, dewTemperature, windSpeed, hour]
+        dummy_input = torch.tensor([[15.0, 5.0, 5.0, 10]], dtype=torch.float32)
         output = model(dummy_input)
         assert output is not None, "Model output is None"
         print("✅ Traditional AI Model initialized and forward pass successful.")

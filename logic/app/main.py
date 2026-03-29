@@ -3,7 +3,7 @@ import time
 from fastapi import FastAPI
 from app.config import SERVER_IP, NODE_RED_URL
 from app.data_manager import get_building_list, get_consumption_peak, update_building_metrics, get_electricity_len
-from app.metrics_exporter import export_as_response
+from app.metrics_exporter import export_as_response, dew_temperature_gauge
 
 app = FastAPI(title="Smart Building 2.0 - Stable Metrics Engine")
 

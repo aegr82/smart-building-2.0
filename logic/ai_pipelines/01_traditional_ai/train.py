@@ -21,7 +21,7 @@ class EnergyPredictor(nn.Module):
     def __init__(self):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(3, 32),
+            nn.Linear(4, 32),
             nn.ReLU(),
             nn.Linear(32, 16),
             nn.ReLU(),
@@ -69,7 +69,7 @@ def load_and_preprocess_data(target_csv: str):
         print(f"Building {TARGET_BUILDING} not found in {target_csv}")
         return None, None
 
-    df = df.dropna(subset=[TARGET_BUILDING, 'airTemperature', 'windSpeed'])
+    df = df.dropna(subset=[TARGET_BUILDING, 'airTemperature', 'dewTemperature', 'windSpeed'])
     
     # Feature Engineering
     df['hour'] = df['timestamp'].dt.hour
@@ -79,7 +79,7 @@ def load_and_preprocess_data(target_csv: str):
     df_training_half = df.iloc[:half_idx]
     
     # X and y: Purely independent variables to prevent Circular Inference Deadlock
-    X = df_training_half[['airTemperature', 'windSpeed', 'hour']].values
+    X = df_training_half[['airTemperature', 'dewTemperature', 'windSpeed', 'hour']].values
     y = df_training_half[[TARGET_BUILDING]].values
     
     tensor_X = torch.tensor(X, dtype=torch.float32)
@@ -98,7 +98,7 @@ def train_model(target_csv: str, model_filename: str):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     train_data, val_data = load_and_preprocess_data(target_csv)
-    if not train_data: return
+    if not train_data: return None
     
     train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=BATCH_SIZE, shuffle=False)
@@ -139,13 +139,23 @@ def train_model(target_csv: str, model_filename: str):
         
         if (epoch+1) % 10 == 0:
             print(f"Epoch {epoch+1:03d}/{EPOCHS} | Train MAE: {train_loss:.2f} | Val MAE: {val_loss:.2f}")
-            
-    print(f"[3/4] Training completed in {time.time() - start_time:.2f}s")
+    
+    duration = time.time() - start_time
+    print(f"[3/4] Training completed in {duration:.2f}s")
     
     # Save Model
     model_path = os.path.join(os.path.dirname(__file__), model_filename)
     print(f"[4/4] Saving model to {model_path}")
     torch.save(model.state_dict(), model_path)
+    
+    return {
+        "train_mae": round(train_loss, 4),
+        "val_mae": round(val_loss, 4),
+        "duration_s": round(duration, 2),
+        "epochs": EPOCHS,
+        "train_samples": len(train_data),
+        "val_samples": len(val_data)
+    }
 
 if __name__ == "__main__":
     print("=== TRADITIONAL AI PIPELINE: DUAL TRAINING PHASE ===")

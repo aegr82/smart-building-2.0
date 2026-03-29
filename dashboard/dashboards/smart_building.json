@@ -46,7 +46,7 @@
         "gridPos": {
           "x": 0,
           "y": 16,
-          "w": 12,
+          "w": 8,
           "h": 8
         },
         "targets": [
@@ -59,11 +59,28 @@
       },
       {
         "type": "timeseries",
+        "title": "Dew Temperature (Humidity Indicator)",
+        "gridPos": {
+          "x": 8,
+          "y": 16,
+          "w": 8,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "site_dew_temperature",
+            "refId": "A",
+            "legendFormat": "{{site_id}}"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
         "title": "Wind Speed",
         "gridPos": {
-          "x": 12,
+          "x": 16,
           "y": 16,
-          "w": 12,
+          "w": 8,
           "h": 8
         },
         "targets": [

@@ -32,7 +32,15 @@ wind_speed_gauge = Gauge(
     registry=registry
 )
 
+dew_temperature_gauge = Gauge(
+    "site_dew_temperature",
+    "Temperatura de rocío actual (indicador de humedad)",
+    ["site_id"],
+    registry=registry
+)
+
 def export_as_response():
     """Genera la respuesta HTTP formateada para Prometheus."""
     from fastapi import Response
     return Response(content=generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
+

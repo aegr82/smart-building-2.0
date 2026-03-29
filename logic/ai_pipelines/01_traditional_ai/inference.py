@@ -16,13 +16,13 @@ def _predict_single(model_path: str, tensor_input: torch.Tensor, device: torch.d
     with torch.no_grad():
         return model(tensor_input).item()
 
-def inference_step(air_temp: float, wind_speed: float, hour: int, actual_elec: float, actual_cw: float):
+def inference_step(air_temp: float, wind_speed: float, hour: int, actual_elec: float, actual_cw: float, dew_temp: float = 0.0):
     print("=== TRADITIONAL AI PIPELINE: DUAL INFERENCE PHASE ===")
     
     device = torch.device('cpu') # Inference is fine on CPU
-    tensor_input = torch.tensor([[air_temp, wind_speed, hour]], dtype=torch.float32)
+    tensor_input = torch.tensor([[air_temp, dew_temp, wind_speed, hour]], dtype=torch.float32)
     
-    print(f"🌡️ Weather Context: Temp={air_temp}°C, Wind={wind_speed}m/s, Hour={hour}:00")
+    print(f"🌡️ Weather Context: Temp={air_temp}°C, Dew={dew_temp}°C, Wind={wind_speed}m/s, Hour={hour}:00")
     
     # Predict Electricity
     pred_elec = _predict_single(MODEL_ELEC_PATH, tensor_input, device)
@@ -57,4 +57,5 @@ def inference_step(air_temp: float, wind_speed: float, hour: int, actual_elec: f
     return results
 
 if __name__ == "__main__":
-    inference_step(12.5, 4.2, 14, 130.0, 360000.0)
+    inference_step(12.5, 4.2, 14, 130.0, 360000.0, dew_temp=5.0)
+

@@ -36,6 +36,11 @@ tab1, tab2 = st.tabs(["📊 Modelos Gemelos (PyTorch)", "⚡ Autonomía Agentic 
 total_len = get_electricity_len()
 start_idx = int(total_len * 0.5)
 
+def _get_weather(p):
+    """Extract weather data from payload safely."""
+    weather_keys = list(p.get('weather', {}).keys())
+    return p['weather'][weather_keys[0]] if weather_keys else {'airTemperature': 15.0, 'windSpeed': 5.0, 'dewTemperature': None}
+
 # --- TAB 1: TRADITIONAL AI ---
 with tab1:
     st.header("Entrenamiento y Predicción Tradicional")
@@ -46,9 +51,19 @@ with tab1:
         with st.spinner("Entrenando PyTorch (Electricidad y Agua Helada) con 50 épocas..."):
             try:
                 train_mod = load_pipeline_module("train_mod", "01_traditional_ai/train.py")
-                train_mod.train_model("electricity.csv", "model_elec.pth")
-                train_mod.train_model("chilledwater.csv", "model_cw.pth")
-                st.success("✅ Modelos exportados y actualizados exitosamente en la carpeta 01_traditional_ai.")
+                metrics_elec = train_mod.train_model("electricity.csv", "model_elec.pth")
+                metrics_cw = train_mod.train_model("chilledwater.csv", "model_cw.pth")
+                st.success("✅ Modelos exportados (4 features: airTemp, dewTemp, windSpeed, hour).")
+                
+                # Display training results
+                for label, m in [("⚡ Electricity Model", metrics_elec), ("❄️ Chilled Water Model", metrics_cw)]:
+                    if m:
+                        st.markdown(f"**{label}**")
+                        m1, m2, m3, m4 = st.columns(4)
+                        m1.metric("Train MAE", f"{m['train_mae']:.2f} kWh")
+                        m2.metric("Val MAE", f"{m['val_mae']:.2f} kWh")
+                        m3.metric("Duración", f"{m['duration_s']}s")
+                        m4.metric("Muestras", f"{m['train_samples']} train / {m['val_samples']} val")
             except Exception as e:
                 st.error(f"Error entrenando: {e}")
 
@@ -69,27 +84,29 @@ with tab1:
     if 'payload' in st.session_state:
         p = st.session_state.payload
         b_data = p.get('buildings', {}).get(TARGET_BUILDING, {})
-        # Usaremos el clima de Eagle, el id de site puede variar. Asumimos el first key de weather.
-        weather_keys = list(p.get('weather', {}).keys())
-        w_data = p['weather'][weather_keys[0]] if weather_keys else {'airTemperature': 15.0, 'windSpeed': 5.0}
+        w_data = _get_weather(p)
         
-        c1, c2, c3, c4 = st.columns(4)
+        c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Timestamp", str(p.get('timestamp')))
         c2.metric("Temperatura", f"{w_data.get('airTemperature')} °C")
-        c3.metric("Electricidad Actual", f"{b_data.get('electricity_kwh')} kWh")
-        c4.metric("Chilled Water Actual", f"{b_data.get('chilledwater_kwh')} kWh")
+        dew_val = w_data.get('dewTemperature')
+        c3.metric("Punto de Rocío", f"{dew_val} °C" if dew_val is not None else "N/A")
+        c4.metric("Electricidad Actual", f"{b_data.get('electricity_kwh')} kWh")
+        c5.metric("Chilled Water Actual", f"{b_data.get('chilledwater_kwh')} kWh")
         
         if st.button("ANALIZAR ANOMALÍA (PyTorch)"):
             with st.spinner("Evaluando huella energética..."):
                 try:
                     hour = pd.to_datetime(p['timestamp']).hour if p.get('timestamp') else 12
+                    dew = float(dew_val) if dew_val is not None else 0.0
                     inf_module = load_pipeline_module("trad_inf", "01_traditional_ai/inference.py")
                     res = inf_module.inference_step(
                         float(w_data.get('airTemperature', 20.0)),
                         float(w_data.get('windSpeed', 5.0)),
                         hour,
                         float(b_data.get('electricity_kwh', 0.0)),
-                        float(b_data.get('chilledwater_kwh', 0.0))
+                        float(b_data.get('chilledwater_kwh', 0.0)),
+                        dew_temp=dew
                     )
                     st.json(res)
                 except Exception as e:
@@ -105,9 +122,10 @@ with tab2:
     else:
         p = st.session_state.payload
         b_data = p.get('buildings', {}).get(TARGET_BUILDING, {})
-        weather_keys = list(p.get('weather', {}).keys())
-        w_data = p['weather'][weather_keys[0]] if weather_keys else {'airTemperature': 15.0, 'windSpeed': 5.0}
+        w_data = _get_weather(p)
         hour = pd.to_datetime(p['timestamp']).hour if p.get('timestamp') else 12
+        dew_val = w_data.get('dewTemperature')
+        dew = float(dew_val) if dew_val is not None else 0.0
 
         st.info("Variables en Caché Listas para Inferencia Autónoma.")
         
@@ -122,7 +140,8 @@ with tab2:
                         float(b_data.get('electricity_kwh', 0.0)),
                         float(b_data.get('chilledwater_kwh', 0.0)),
                         "LOW", # simulated
-                        "ON" # simulated
+                        "ON", # simulated
+                        dew_temp=dew
                     )
                     if res:
                         st.success(f"Comando Creado en {res['latency']:.2f}s interactuando con Herramientas Matemáticas.")
@@ -139,3 +158,4 @@ with tab2:
                         st.error("Error contactando API de Gemini")
                 except Exception as e:
                     st.error(f"Error: {e}")
+
