@@ -1,7 +1,7 @@
 import os
 import torch
 import torch.nn as nn
-from .train import EnergyPredictor, TARGET_BUILDING
+from train import EnergyPredictor, TARGET_BUILDING
 
 MODEL_DIR = os.path.dirname(__file__)
 MODEL_ELEC_PATH = os.path.join(MODEL_DIR, 'model_elec.pth')
