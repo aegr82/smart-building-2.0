@@ -27,18 +27,6 @@ def test_traditional_ai():
         print(f"❌ Traditional AI failed: {e}")
         raise e
 
-def test_generative_ai():
-    print("Testing Generative AI...")
-    try:
-        inf_mod = load_module("gen_inference", "02_generative_ai/inference.py")
-        # Just calling it to see if it executes without throwing unhandled exceptions
-        # (It will print to stdout)
-        inf_mod.generative_inference()
-        print("✅ Generative AI inference executed successfully.")
-    except Exception as e:
-        print(f"❌ Generative AI failed: {e}")
-        raise e
-
 def test_agentic_ai():
     print("Testing Agentic AI...")
     try:
@@ -52,8 +40,6 @@ def test_agentic_ai():
 if __name__ == "__main__":
     print(f"Starting simple integration tests for AI Pipelines linking to: {BASE_DIR}\n")
     test_traditional_ai()
-    print("\n------------------\n")
-    test_generative_ai()
     print("\n------------------\n")
     test_agentic_ai()
     print("\n✅ All tests attempted.")

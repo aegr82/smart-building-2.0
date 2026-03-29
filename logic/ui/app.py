@@ -12,7 +12,7 @@ LOGIC_DIR = os.path.join(BASE_DIR, '..')
 PIPELINES_DIR = os.path.join(LOGIC_DIR, 'ai_pipelines')
 DATA_DIR = os.path.join(LOGIC_DIR, '..', 'data')
 
-TARGET_BUILDING = 'Bull_lodging_Melissa'
+TARGET_BUILDING = 'Eagle_office_Marisela'
 
 def load_pipeline_module(name, rel_path):
     file_path = os.path.join(PIPELINES_DIR, rel_path)
@@ -25,96 +25,117 @@ def load_pipeline_module(name, rel_path):
     spec.loader.exec_module(module)
     return module
 
-st.title("🤖 AI Pipelines UI Tester")
-st.markdown("Dashboard privado para validar los modelos sobre el 50% de los datos históricos (Evitando Data Leakage).")
+sys.path.insert(0, LOGIC_DIR)
+from app.data_manager import extract_sensor_payload_at_index, get_electricity_len
 
-tab1, tab2, tab3 = st.tabs(["📊 Traditional AI (Predicción)", "📝 Generative AI (Analista)", "⚡ Agentic AI (Controlador)"])
+st.title("🤖 AI Pipelines UI Tester")
+st.markdown("Dashboard para validar Controladores (Agentes) y Modelos Predictivos puramente sobre el 50% inédito de operaciones (Previniendo Data Leakage).")
+
+tab1, tab2 = st.tabs(["📊 Modelos Gemelos (PyTorch)", "⚡ Autonomía Agentic AI"])
+
+total_len = get_electricity_len()
+start_idx = int(total_len * 0.5)
 
 # --- TAB 1: TRADITIONAL AI ---
 with tab1:
     st.header("Entrenamiento y Predicción Tradicional")
-    try:
-        df = pd.read_csv(os.path.join(DATA_DIR, "electricity.csv"))
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        # 1. Sólo el 50% histórico
-        half_idx = int(len(df) * 0.5)
-        df_hist = df.iloc[:half_idx].copy()
-        
-        # 2. Split 80/20 train/test
-        split_idx = int(len(df_hist) * 0.8)
-        
-        st.write(f"**Dataset Total:** {len(df)} filas | **Mitad Histórica (50%):** {len(df_hist)} filas")
-        st.write(f"→ **Train (80%):** {split_idx} filas | **Test (20%):** {len(df_hist) - split_idx} filas")
-        
-        # Prep for plotting
-        plot_df = pd.DataFrame({'timestamp': df_hist['timestamp']}).set_index('timestamp')
-        plot_df['Train (80%)'] = df_hist.iloc[:split_idx][TARGET_BUILDING]
-        plot_df['Test / Val (20%)'] = df_hist.iloc[split_idx:][TARGET_BUILDING]
-        
-        st.line_chart(plot_df, color=['#1f77b4', '#ff7f0e'])
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.info("Para re-entrenar el modelo, debes ejecutar la imagen de docker o el script `train.py` directamente por terminal por su volumen de cómputo.")
-        with col2:
-            if st.button("Probar Inferencia Rápida (Sensor Simulado)"):
-                with st.spinner("Cargando PyTorch..."):
-                    inf_module = load_pipeline_module("trad_inf", "01_traditional_ai/inference.py")
-                    res = inf_module.inference_step(12.5, 4.2, 14, 1150.0)
-                    st.success("Inferencia exitosa")
-                    st.json(res)
-    except Exception as e:
-        st.error(f"Error cargando datos: {e}")
-
-# --- TAB 2: GENERATIVE AI ---
-with tab2:
-    st.header("Analista Generativo (Gemini Flash)")
-    st.write("Genera resúmenes ejecutivos a partir de un contexto simulado del comportamiento del edificio.")
     
-    if st.button("EJECUTAR ANALISTA LLM"):
-        with st.spinner("Llamando a Gemini 3.1 Flash Lite Preview..."):
+    # 1. Training Controls
+    st.subheader("1. Entrenar Inteligencia Matemática")
+    if st.button("▶ RE-ENTRENAR MODELOS GEMELOS"):
+        with st.spinner("Entrenando PyTorch (Electricidad y Agua Helada) con 50 épocas..."):
             try:
-                gen_module = load_pipeline_module("gen_inf", "02_generative_ai/inference.py")
-                res = gen_module.generative_inference()
-                if res:
-                    st.success(f"Reporte recibido en {res['latency']:.2f}s")
-                    st.write(res['text'])
-                    st.caption(f"Tokens IN: {res['tokens_in']} | OUT: {res['tokens_out']}")
-                else:
-                    st.error("Revisa tu GEMINI_API_KEY")
+                train_mod = load_pipeline_module("train_mod", "01_traditional_ai/train.py")
+                train_mod.train_model("electricity.csv", "model_elec.pth")
+                train_mod.train_model("chilledwater.csv", "model_cw.pth")
+                st.success("✅ Modelos exportados y actualizados exitosamente en la carpeta 01_traditional_ai.")
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Error entrenando: {e}")
 
-# --- TAB 3: AGENTIC AI ---
-with tab3:
-    st.header("Control Automático (Agente JSON)")
-    st.write("Simula la lectura de sensores y devuelve un payload JSON estructurado listo para enviarse al BMS.")
+    st.divider()
     
-    colA, colB = st.columns(2)
-    with colA:
-        st.markdown("**Estado Simulado Actual:**")
-        st.code("""
-{
-    "timestamp": "2026-03-28T18:00:00",
-    "air_temperature_celsius": 14.5,
-    "building_occupancy": "LOW",
-    "chiller_status": "ON"
-}
-        """, language="json")
+    # 2. Inference Control
+    st.subheader("2. Simulador de Operación Inédita (Inferencia)")
+    
+    st.write(f"Desliza para cargar el estado del BMS en el timestamp inédito seleccionado (Rango: {start_idx} al {total_len})")
+    sim_index = st.slider("Índice de Simulación IoT", min_value=start_idx, max_value=total_len-1, value=start_idx, step=1)
+    
+    if st.button("CARGAR ESTADO DE SENSORES"):
+        st.session_state.sim_index = sim_index
+        payload = extract_sensor_payload_at_index(sim_index, [TARGET_BUILDING])
+        st.session_state.payload = payload
+        st.success("Sensores Obtenidos")
         
-    with colB:
+    if 'payload' in st.session_state:
+        p = st.session_state.payload
+        b_data = p.get('buildings', {}).get(TARGET_BUILDING, {})
+        # Usaremos el clima de Eagle, el id de site puede variar. Asumimos el first key de weather.
+        weather_keys = list(p.get('weather', {}).keys())
+        w_data = p['weather'][weather_keys[0]] if weather_keys else {'airTemperature': 15.0, 'windSpeed': 5.0}
+        
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Timestamp", str(p.get('timestamp')))
+        c2.metric("Temperatura", f"{w_data.get('airTemperature')} °C")
+        c3.metric("Electricidad Actual", f"{b_data.get('electricity_kwh')} kWh")
+        c4.metric("Chilled Water Actual", f"{b_data.get('chilledwater_kwh')} kWh")
+        
+        if st.button("ANALIZAR ANOMALÍA (PyTorch)"):
+            with st.spinner("Evaluando huella energética..."):
+                try:
+                    hour = pd.to_datetime(p['timestamp']).hour if p.get('timestamp') else 12
+                    inf_module = load_pipeline_module("trad_inf", "01_traditional_ai/inference.py")
+                    res = inf_module.inference_step(
+                        float(w_data.get('airTemperature', 20.0)),
+                        float(w_data.get('windSpeed', 5.0)),
+                        hour,
+                        float(b_data.get('electricity_kwh', 0.0)),
+                        float(b_data.get('chilledwater_kwh', 0.0))
+                    )
+                    st.json(res)
+                except Exception as e:
+                    st.error(f"Error prediciendo: {e}")
+
+# --- TAB 2: AGENTIC AI ---
+with tab2:
+    st.header("Control Automático (Agente LLM + Herramientas PyTorch)")
+    st.write("El Agente leerá el estado actual del edificio y utilizará los modelos predicitivos Gemelos como sus consejeros ('Tooling') para decidir qué maquinaria apagar.")
+    
+    if 'payload' not in st.session_state:
+        st.warning("⚠️ Primero ve a la pestaña de Modelos Gemelos y carga un Estado de Sensores en el Slider.")
+    else:
+        p = st.session_state.payload
+        b_data = p.get('buildings', {}).get(TARGET_BUILDING, {})
+        weather_keys = list(p.get('weather', {}).keys())
+        w_data = p['weather'][weather_keys[0]] if weather_keys else {'airTemperature': 15.0, 'windSpeed': 5.0}
+        hour = pd.to_datetime(p['timestamp']).hour if p.get('timestamp') else 12
+
+        st.info("Variables en Caché Listas para Inferencia Autónoma.")
+        
         if st.button("CONSULTAR AGENTE PARA ACCIÓN"):
-            with st.spinner("Modelando decisión determinística..."):
+            with st.spinner("Agente invocando modelos matemáticos y razonando..."):
                 try:
                     agent_mod = load_pipeline_module("agent_inf", "03_agentic_ai/inference.py")
-                    res = agent_mod.agentic_inference()
+                    res = agent_mod.agentic_inference(
+                        float(w_data.get('airTemperature', 20.0)),
+                        float(w_data.get('windSpeed', 5.0)),
+                        hour,
+                        float(b_data.get('electricity_kwh', 0.0)),
+                        float(b_data.get('chilledwater_kwh', 0.0)),
+                        "LOW", # simulated
+                        "ON" # simulated
+                    )
                     if res:
-                        st.success(f"Comando JSON generado en {res['latency']:.2f}s")
-                        st.json(res['payload'])
-                        if res['payload'].get('action') == 'TURN_OFF':
-                            st.balloons()
+                        st.success(f"Comando Creado en {res['latency']:.2f}s interactuando con Herramientas Matemáticas.")
+                        cA, cB = st.columns(2)
+                        with cA:
+                            st.write("**Respuesta Evaluada por System 1 (Tools):**")
+                            st.json(res.get('tool_predictions', {}))
+                        with cB:
+                            st.write("**Decisión Ejecutiva (System 2):**")
+                            st.json(res['payload'])
+                            if res['payload'].get('action') == 'TURN_OFF':
+                                st.balloons()
                     else:
-                        st.error("Error contactando API")
+                        st.error("Error contactando API de Gemini")
                 except Exception as e:
                     st.error(f"Error: {e}")
