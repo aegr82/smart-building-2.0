@@ -132,3 +132,65 @@ def get_current_electricity_row(replay_index: int) -> dict:
 def get_electricity_len() -> int:
     ds = load_datasets()
     return len(ds['electricity']) if ds and 'electricity' in ds else 1
+
+def extract_sensor_payload_at_index(replay_index: int, target_buildings: list) -> dict:
+    """Extrae todas las mediciones crudas (Sensores IoT) para empaquetar hacia Node-RED."""
+    ds = load_datasets()
+    if ds is None or 'electricity' not in ds: return {}
+    
+    df_e = ds['electricity']
+    if replay_index >= len(df_e): return {}
+    
+    row_e = df_e.iloc[replay_index]
+    ts = row_e.get('timestamp')
+    
+    payload = {
+        "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S") if pd.notna(ts) else "",
+        "buildings": {},
+        "weather": {}
+    }
+    
+    for build_id in target_buildings:
+        b_data = {"electricity_kwh": 0.0, "chilledwater_kwh": 0.0}
+        
+        # Electricidad
+        try:
+            val_e = float(row_e[build_id]) if pd.notna(row_e[build_id]) else 0.0
+            b_data["electricity_kwh"] = val_e
+        except Exception: pass
+            
+        # Agua Helada
+        if 'chilledwater' in ds and build_id in ds['chilledwater'].columns:
+            df_cw = ds['chilledwater']
+            row_cw = df_cw.iloc[replay_index % len(df_cw)]
+            try:
+                val_cw = float(row_cw[build_id]) if pd.notna(row_cw[build_id]) else 0.0
+                b_data["chilledwater_kwh"] = val_cw
+            except Exception: pass
+            
+        payload["buildings"][build_id] = b_data
+        
+        # Clima
+        if 'metadata' in ds and 'weather' in ds:
+            try:
+                if build_id in ds['metadata'].index:
+                    site_id = ds['metadata'].loc[build_id, 'site_id']
+                    if hasattr(site_id, 'iloc'): site_id = site_id.iloc[0]
+                    
+                    if site_id not in payload["weather"]:
+                        w_df = ds['weather']
+                        site_w = w_df[w_df['site_id'] == site_id].copy()
+                        if not site_w.empty:
+                            nearest_idx = site_w['timestamp'].searchsorted(ts)
+                            if nearest_idx >= len(site_w): nearest_idx = len(site_w) - 1
+                            w_row = site_w.iloc[nearest_idx]
+                            
+                            td = abs(w_row['timestamp'] - ts)
+                            if td.total_seconds() < 7200:
+                                payload["weather"][site_id] = {
+                                    "airTemperature": float(w_row['airTemperature']) if pd.notna(w_row['airTemperature']) else None,
+                                    "windSpeed": float(w_row['windSpeed']) if pd.notna(w_row['windSpeed']) else None
+                                }
+            except Exception: pass
+
+    return payload

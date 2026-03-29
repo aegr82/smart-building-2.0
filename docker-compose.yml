@@ -17,6 +17,23 @@ services:
     networks:
       - bms_net
 
+  ai_tester:
+    restart: always
+    build:
+      context: ./logic
+      dockerfile: Dockerfile
+    container_name: bms_ai_tester
+    command: ["streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./logic:/app           # Para desarrollo en vivo de la UI
+      - ./data:/app/data       # Para acceder al dataset
+    env_file:
+      - .env
+    networks:
+      - bms_net
+
   replayer:
     profiles: ["replayer"]
     build:

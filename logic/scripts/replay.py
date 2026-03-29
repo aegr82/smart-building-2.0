@@ -1,29 +1,19 @@
-"""Simula datos en tiempo real enviando filas del dataset a Node-RED.
+"""IoT Sensor Array Simulator (Smart Building 2.0).
 
-Este script se ejecuta como servicio dentro de Docker (via docker-compose) y
-publica cada fila del CSV al endpoint /replay de Node-RED.
-
-Para ajustarlo desde fuera, usa variables de entorno:
-- CSV_PATH: path al CSV (por defecto /app/data/electricity.csv)
-- REPLAY_INTERVAL_SECONDS: intervalo entre filas (por defecto 1)
-- NODE_RED_URL: URL completa del endpoint de Node-RED (por defecto http://gateway:1880/replay)
+Este script se ejecuta de forma asíncrona a la API central e inyecta 
+paquetes unificados de los medidores directamente a Node-RED (Gateway).
+Evita fugas de datos garantizando que la simulación ocurra EXCLUSIVAMENTE 
+sobre el 50% final de los datos (la primera mitad histórica es solo para entrenar IA).
 """
 
 import os
 import time
-import pandas as pd
 import httpx
-
-
-def get_csv_path() -> str:
-    return os.getenv("CSV_PATH", "/app/data/electricity.csv")
-
+from app.data_manager import extract_sensor_payload_at_index, get_electricity_len
 
 def get_node_red_url() -> str:
-    # Default: intenta localhost (dev), luego gateway (Docker), luego config IP
-    default = os.getenv("NODE_RED_DEFAULT", "http://localhost:1880/replay")
+    default = os.getenv("NODE_RED_DEFAULT", "http://gateway:1880/replay")
     return os.getenv("NODE_RED_URL", default)
-
 
 def get_interval() -> float:
     try:
@@ -31,33 +21,36 @@ def get_interval() -> float:
     except Exception:
         return 1.0
 
-
 def main() -> None:
-    csv_path = get_csv_path()
     node_red_url = get_node_red_url()
     interval = get_interval()
 
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+    total_len = get_electricity_len()
+    if total_len <= 1:
+        raise SystemExit("Dataset is too small or missing")
 
-    df = pd.read_csv(csv_path)
-    if df.empty:
-        raise SystemExit("CSV is empty")
+    # REGLA ORO: NUNCA EMITIR EL PRIMER 50% DE LOS DATOS (HISTÓRICO IA).
+    start_idx = int(total_len * 0.5)
+    idx = start_idx
 
+    target_buildings = ['Bull_lodging_Melissa', 'Fox_office_Easter', 'Eagle_office_Marisela']
+    
     client = httpx.Client(timeout=10.0)
+    print(f"🛡️ IoT Sim: Starting unified sensor replay from index {start_idx} to {total_len} (Data Leakage Prevented).")
 
-    idx = 0
     while True:
-        row = df.iloc[idx].to_dict()
+        payload = extract_sensor_payload_at_index(idx, target_buildings)
         try:
-            client.post(node_red_url, json=row)
-        except Exception:
-            # Ignore network issues and continue
-            pass
+            client.post(node_red_url, json=payload)
+        except Exception as e:
+            print(f"Gateway connection error: {e}")
 
-        idx = (idx + 1) % len(df)
+        idx += 1
+        # Loop over the 50% segment seamlessly
+        if idx >= total_len:
+            idx = start_idx
+            
         time.sleep(interval)
-
 
 if __name__ == "__main__":
     main()
