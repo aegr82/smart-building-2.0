@@ -11,11 +11,23 @@ load_dotenv(dotenv_path)
 API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # --- TOOL REGISTRY ---
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '01_traditional_ai')))
-try:
-    from inference import inference_step as traditional_inference
-except ImportError as e:
-    traditional_inference = None
+# Usamos un cargador explícito por ruta absoluta para evitar colisiones entre archivos "inference.py"
+import importlib.util
+trad_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '01_traditional_ai', 'inference.py'))
+
+traditional_inference = None
+if os.path.exists(trad_path):
+    try:
+        spec = importlib.util.spec_from_file_location("trad_tool", trad_path)
+        trad_mod = importlib.util.module_from_spec(spec)
+        # Aseguramos que el directorio del tool esté en path para sus propios imports (train.py)
+        t_dir = os.path.dirname(trad_path)
+        if t_dir not in sys.path:
+            sys.path.insert(0, t_dir)
+        spec.loader.exec_module(trad_mod)
+        traditional_inference = trad_mod.inference_step
+    except Exception as e:
+        print(f"Error loading Traditional AI Tool: {e}")
 
 def agentic_inference(air_temp=14.5, wind=12.0, hour=18, actual_elec=130.0, actual_cw=360000.0, occupancy="LOW", chiller_status="ON"):
     print("=== AGENTIC AI PIPELINE: AUTONOMOUS CONTROL PHASE ===")
