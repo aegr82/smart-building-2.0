@@ -34,22 +34,6 @@ services:
     networks:
       - bms_net
 
-  replayer:
-    build:
-      context: ./logic
-      dockerfile: Dockerfile
-    container_name: bms_replayer
-    command: ["python", "scripts/replay.py"]
-    volumes:
-      - ./logic:/app
-      - ./data:/app/data
-    env_file:
-      - .env
-    environment:
-      - NODE_RED_URL=http://gateway:1880/replay
-    networks:
-      - bms_net
-    restart: always
 
   gateway:
     restart: always
