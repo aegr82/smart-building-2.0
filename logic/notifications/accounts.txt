@@ -1,0 +1,5 @@
+# Coloca aquí una Webhook URL de Discord por línea.
+# Cómo crear una: Canal → Settings → Integrations → Webhooks → New Webhook → Copy URL
+# Ejemplo: https://discord.com/api/webhooks/123456789/abcdefghijk
+
+https://discord.com/api/webhooks/1488398551842164847/hSytvmFI8O3sSHjeC-geOtUy7LxMsyoKAljbpPCzYSr_GdiL0ZygI3UzjUtiFubGiGyR

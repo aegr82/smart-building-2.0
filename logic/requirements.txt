@@ -11,3 +11,4 @@ torch
 google-genai
 streamlit
 plotly
+fastmcp

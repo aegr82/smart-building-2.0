@@ -70,6 +70,23 @@ services:
     networks:
       - bms_net
 
+  notifier:
+    build:
+      context: ./logic
+      dockerfile: Dockerfile
+    container_name: bms_notifier
+    command: ["python", "notifications/orchestrator.py"]
+    volumes:
+      - ./logic:/app
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Tegucigalpa
+    networks:
+      - bms_net
+    restart: always
+
 networks:
   bms_net:
     driver: bridge
