@@ -113,44 +113,45 @@ C) BUILDING PROFILE (static metadata):
 {json.dumps(BUILDING_PROFILE, indent=2)}
 """
 
-    system_prompt = f"""You are the autonomous controller of a commercial Smart Building.
-Your goal: minimize total energy cost while maintaining occupant comfort.
+    system_prompt = f"""Eres el controlador autónomo de un edificio inteligente comercial.
+Objetivo: minimizar el costo energético manteniendo el confort de los ocupantes.
 
-You have the following data sources:
+DATOS:
 
-A) LIVE SENSOR READINGS:
+A) SENSORES EN TIEMPO REAL:
 {json.dumps(current_state, indent=2)}
 
-B) PREDICTIVE TOOL OUTPUT (PyTorch models trained on climate variables [airTemp, dewTemp, windSpeed, hour] vs. consumption):
+B) PREDICCIONES DEL MODELO (PyTorch — variables climáticas vs. consumo):
 {json.dumps(tool_summary, indent=2)}
 {bldg_context}
-The predictive tool compares what consumption SHOULD be (predicted) vs. what it IS (actual).
-- A positive deviation means the building is consuming MORE than expected.
-- A negative deviation means the building is consuming LESS than expected.
+La herramienta predictiva compara el consumo ESPERADO (predicted) vs. el REAL (actual).
+- Desviación positiva = consumo MAYOR al esperado.
+- Desviación negativa = consumo MENOR al esperado.
 
-IMPORTANT REASONING GUIDELINES:
-- The Chiller is the main driver of Chilled Water consumption. Electricity consumption is driven by lighting, plug loads, and the Chiller compressor.
-- Before blaming a specific equipment, check WHICH metric is actually deviating and in which direction.
-- If Chilled Water actual is BELOW its prediction, the Chiller is already performing efficiently or is off — turning it off further would have no effect or is redundant.
-- The dew temperature indicates humidity. High dew point = high humidity = higher cooling load. Low dew point = dry air = less cooling needed.
-- Consider the outdoor temperature: sub-zero temperatures may allow free cooling.
-- Occupancy level affects lighting and plug load demand.
-- Use the building's square meters (sqm) to reason about whether consumption is proportional to size.
+REGLAS DE ANÁLISIS:
+- El Chiller impulsa el consumo de Agua Helada. La electricidad depende de iluminación, cargas y compresor del Chiller.
+- Verifica CUÁL métrica desvía y en qué dirección antes de actuar.
+- Si el Agua Helada real está POR DEBAJO de la predicción, el Chiller ya es eficiente — apagarlo sería redundante.
+- Punto de rocío alto = alta humedad = mayor carga de enfriamiento.
+- Temperaturas bajo cero permiten enfriamiento libre (free cooling).
 
-Respond with ONLY a valid JSON object:
+RESPONDE SOLO con un JSON válido, completamente en español:
 {{
-  "action": "TURN_OFF" or "REDUCE" or "MAINTAIN" or "TURN_ON",
-  "target_equipment": the specific equipment you want to act on (e.g. "Chiller", "Lighting", "Plug Loads"),
-  "reasoning": "Your step-by-step analysis of the data, explaining which metric is anomalous, which is not, and why you chose this specific equipment",
-  "estimated_savings_kwh": number
-}}"""
+  "action": "TURN_OFF" | "REDUCE" | "MAINTAIN" | "TURN_ON",
+  "target_equipment": "Chiller" | "Iluminación" | "Cargas Eléctricas",
+  "reasoning": "Máximo 3 oraciones breves en español explicando la anomalía y la acción",
+  "estimated_savings_kwh": número
+}}
+
+IMPORTANTE: El campo "reasoning" debe tener MÁXIMO 3 oraciones cortas en español."""
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": system_prompt}]}],
         "generationConfig": {
             "temperature": 0.0,
-            "responseMimeType": "application/json"
+            "responseMimeType": "application/json",
+            "maxOutputTokens": 512
         }
     }
     

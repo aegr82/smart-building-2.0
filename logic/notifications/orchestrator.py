@@ -138,6 +138,12 @@ def main():
             last_reset_date = today
             print(f"\n🔄 Daily counter reset. New day: {today}")
 
+        # --- HARD STOP: quota exhausted ---
+        if daily_count >= MAX_DAILY_NOTIFICATIONS:
+            print(f"  ⏸️ Daily limit reached ({MAX_DAILY_NOTIFICATIONS}). Sleeping until next day or end of operating hours...")
+            time.sleep(300)  # Sleep 5 minutes before re-checking
+            continue
+
         # --- Operating hours check ---
         if not _is_operating_hours():
             time.sleep(30)  # Sleep longer outside hours
@@ -175,7 +181,11 @@ def main():
         is_anomaly, anomaly_type, deviation = _detect_anomaly(predictions)
 
         if is_anomaly and daily_count < MAX_DAILY_NOTIFICATIONS:
-            print(f"\n🚨 [{ts}] ANOMALY: {anomaly_type} at {deviation:+.1f}% | Invoking Agent 03...")
+            # INCREMENT COUNTER BEFORE any expensive call (Agent 03 / Gemini)
+            # This guarantees the limit is enforced even if Agent 03 or
+            # Discord throw exceptions, timeout, or fail silently.
+            daily_count += 1
+            print(f"\n🚨 [{ts}] ANOMALY: {anomaly_type} at {deviation:+.1f}% | Notification {daily_count}/{MAX_DAILY_NOTIFICATIONS} | Invoking Agent 03...")
 
             # --- Agent 03: Generate suggestion ---
             try:
@@ -206,13 +216,18 @@ def main():
 
                 try:
                     result = asyncio.run(_send_notification_via_mcp(tool_args))
-                    daily_count += 1
                     print(f"  ✅ Discord sent ({daily_count}/{MAX_DAILY_NOTIFICATIONS}): {result}")
                 except Exception as e:
                     print(f"  ❌ MCP/Discord error: {e}")
+            else:
+                print(f"  ⚠️ Agent 03 returned no actionable payload.")
+
+            # If we've hit the limit, stop immediately
+            if daily_count >= MAX_DAILY_NOTIFICATIONS:
+                print(f"\n🛑 DAILY LIMIT REACHED ({MAX_DAILY_NOTIFICATIONS}). No more Gemini calls until tomorrow.")
 
         elif is_anomaly and daily_count >= MAX_DAILY_NOTIFICATIONS:
-            print(f"  ⏸️ [{ts}] Anomaly detected but daily limit reached ({MAX_DAILY_NOTIFICATIONS}).")
+            pass  # Silently skip — hard stop at top of loop handles logging
 
         # --- Advance index ---
         current_idx += 1
